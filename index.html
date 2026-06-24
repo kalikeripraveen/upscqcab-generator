@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QCAB Generator — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FAF7F0;
+    --surface:#FFFFFF;
+    --ink:#1F2A37;
+    --muted:#6B7280;
+    --maroon:#8C2F39;
+    --maroon-dark:#6E2530;
+    --navy:#1B3A5C;
+    --line:#E3DDD0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+  header{margin-bottom:28px;border-bottom:2px solid var(--ink);padding-bottom:16px;}
+  header .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--maroon);margin:0 0 6px;
+  }
+  h1{
+    font-family:'Lora',serif;font-weight:700;font-size:30px;margin:0 0 6px;
+    color:var(--ink);
+  }
+  header p{margin:0;color:var(--muted);font-size:14px;max-width:620px;line-height:1.5;}
+
+  .filters{
+    display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:16px;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;min-width:150px;}
+  .field label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;}
+  select{
+    font-family:'Inter',sans-serif;font-size:14px;padding:8px 10px;
+    border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);
+  }
+  select:focus-visible, button:focus-visible, input:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  thead th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);
+  }
+  tbody td{padding:12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{border-left:3px solid transparent;}
+  tbody tr.selected{border-left:3px solid var(--maroon);background:#FFF8F2;}
+  .qtext{line-height:1.45;}
+  .tag{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy);}
+  .marks{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  input[type=checkbox]{width:16px;height:16px;accent-color:var(--maroon);}
+
+  .summary{
+    position:sticky;bottom:16px;margin-top:18px;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    background:var(--ink);color:#fff;padding:14px 18px;border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);
+  }
+  .summary .stats{font-family:'IBM Plex Mono',monospace;font-size:13px;display:flex;gap:18px;flex-wrap:wrap;}
+  .summary .stats b{color:#F2C9C9;}
+  button.generate{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
+    background:var(--maroon);color:#fff;border:none;border-radius:6px;
+    padding:10px 18px;cursor:pointer;transition:background .15s;
+  }
+  button.generate:hover{background:var(--maroon-dark);}
+  button.generate:disabled{background:#9CA3AF;cursor:not-allowed;}
+  .empty{padding:28px;text-align:center;color:var(--muted);font-size:14px;}
+  footer{margin-top:24px;font-size:12px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Demo build — sample data</p>
+    <h1>UPSC Mains PYQ QCAB Generator</h1>
+    <p>Filter previous-year questions by year, GS paper, and topic, select the ones you want to practise, and download a printable Question-cum-Answer Booklet with ruled space sized to each question's word limit.</p>
+  </header>
+
+  <div class="filters">
+    <div class="field">
+      <label for="yearFilter">Year</label>
+      <select id="yearFilter"><option value="">All years</option></select>
+    </div>
+    <div class="field">
+      <label for="paperFilter">GS Paper</label>
+      <select id="paperFilter"><option value="">All papers</option></select>
+    </div>
+    <div class="field">
+      <label for="topicFilter">Topic</label>
+      <select id="topicFilter"><option value="">All topics</option></select>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34px;"></th>
+        <th style="width:60px;">Year</th>
+        <th style="width:60px;">Paper</th>
+        <th>Question</th>
+        <th style="width:60px;">Marks</th>
+        <th style="width:90px;">Word limit</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <div class="summary">
+    <div class="stats">
+      <span>Selected: <b id="selCount">0</b></span>
+      <span>Total marks: <b id="selMarks">0</b></span>
+      <span>10-mark: <b id="sel10">0</b></span>
+      <span>15-mark: <b id="sel15">0</b></span>
+    </div>
+    <button class="generate" id="genBtn" disabled>Generate &amp; download PDF</button>
+  </div>
+
+  <footer>Sample dataset for demonstration only — swap in the real PYQ bank to make this production-ready. See the explanation in chat for how the full version (data source, PDF layout, hosting) fits together.</footer>
+</div>
+
+<script>
+// ---- 1. SAMPLE DATA -------------------------------------------------
+// In a real build this comes from a JSON file (or several, one per year)
+// scraped/typed once from official UPSC PYQ papers.
+const QUESTIONS = [
+  {id:1, year:2024, paper:"GS1", topic:"Indian Society", text:"Discuss the role of women's self-help groups in transforming rural socio-economic structures. Give examples.", marks:10, wordLimit:150},
+  {id:2, year:2024, paper:"GS1", topic:"Geography", text:"Examine the factors responsible for the uneven distribution of rainfall in India and its impact on agriculture.", marks:15, wordLimit:250},
+  {id:3, year:2024, paper:"GS2", topic:"Polity", text:"Critically analyse the role of the Finance Commission in maintaining fiscal balance between the Union and the States.", marks:15, wordLimit:250},
+  {id:4, year:2024, paper:"GS3", topic:"Economy", text:"What are the major challenges in India's transition towards a circular economy? Suggest measures to address them.", marks:15, wordLimit:250},
+  {id:5, year:2023, paper:"GS2", topic:"Governance", text:"Discuss the significance of e-governance initiatives in improving service delivery at the grassroots level.", marks:10, wordLimit:150},
+  {id:6, year:2023, paper:"GS1", topic:"History", text:"Evaluate the contribution of the moderates in shaping the early phase of the Indian national movement.", marks:10, wordLimit:150},
+  {id:7, year:2023, paper:"GS3", topic:"Security", text:"Analyse the changing nature of internal security threats in India and the institutional response to them.", marks:15, wordLimit:250},
+  {id:8, year:2022, paper:"GS4", topic:"Ethics", text:"Discuss the relevance of emotional intelligence in effective public administration with suitable illustrations.", marks:10, wordLimit:150},
+  {id:9, year:2022, paper:"GS2", topic:"International Relations", text:"Examine India's evolving relationship with its extended neighbourhood under the 'Act East' policy.", marks:15, wordLimit:250},
+  {id:10, year:2022, paper:"GS1", topic:"Geography", text:"Discuss the causes and consequences of urban heat islands in major Indian cities.", marks:10, wordLimit:150}
+];
+
+// ---- 2. STATE --------------------------------------------------------
+const selected = new Set();
+let filters = {year:"", paper:"", topic:""};
+
+// ---- 3. POPULATE FILTER DROPDOWNS -----------------------------------
+function uniqueSorted(arr, key){
+  return [...new Set(arr.map(q=>q[key]))].sort();
+}
+function fillSelect(id, values){
+  const sel = document.getElementById(id);
+  values.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+fillSelect('yearFilter', uniqueSorted(QUESTIONS,'year'));
+fillSelect('paperFilter', uniqueSorted(QUESTIONS,'paper'));
+fillSelect('topicFilter', uniqueSorted(QUESTIONS,'topic'));
+
+['yearFilter','paperFilter','topicFilter'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', e=>{
+    const key = id.replace('Filter','');
+    filters[key] = e.target.value;
+    render();
+  });
+});
+
+// ---- 4. RENDER TABLE --------------------------------------------------
+function render(){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  const rows = QUESTIONS.filter(q=>
+    (!filters.year || String(q.year)===String(filters.year)) &&
+    (!filters.paper || q.paper===filters.paper) &&
+    (!filters.topic || q.topic===filters.topic)
+  );
+
+  if(rows.length===0){
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No questions match these filters.</td></tr>';
+    return;
+  }
+
+  rows.forEach(q=>{
+    const tr = document.createElement('tr');
+    if(selected.has(q.id)) tr.classList.add('selected');
+    tr.innerHTML = `
+      <td><input type="checkbox" data-id="${q.id}" ${selected.has(q.id)?'checked':''}></td>
+      <td class="tag">${q.year}</td>
+      <td class="tag">${q.paper}</td>
+      <td class="qtext">${q.text}</td>
+      <td class="marks">${q.marks}</td>
+      <td class="tag">${q.wordLimit}w</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', e=>{
+      const id = Number(e.target.dataset.id);
+      if(e.target.checked) selected.add(id); else selected.delete(id);
+      render();
+      updateSummary();
+    });
+  });
+}
+
+// ---- 5. SUMMARY BAR ----------------------------------------------------
+function updateSummary(){
+  const chosen = QUESTIONS.filter(q=>selected.has(q.id));
+  document.getElementById('selCount').textContent = chosen.length;
+  document.getElementById('selMarks').textContent = chosen.reduce((s,q)=>s+q.marks,0);
+  document.getElementById('sel10').textContent = chosen.filter(q=>q.marks===10).length;
+  document.getElementById('sel15').textContent = chosen.filter(q=>q.marks===15).length;
+  document.getElementById('genBtn').disabled = chosen.length===0;
+}
+
+// ---- 6. PDF GENERATION --------------------------------------------------
+document.getElementById('genBtn').addEventListener('click', ()=>{
+  const chosen = QUESTIONS.filter(q=>selected.has(q.id));
+  if(chosen.length===0) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 50;
+  let y = margin;
+
+  // Cover-style header on first page
+  doc.setFont('times','bold'); doc.setFontSize(16);
+  doc.text('Question-cum-Answer Booklet (QCAB)', pageW/2, y, {align:'center'});
+  y += 18;
+  doc.setFont('times','normal'); doc.setFontSize(10);
+  doc.text(`Custom practice set — ${chosen.length} questions, ${chosen.reduce((s,q)=>s+q.marks,0)} marks`, pageW/2, y, {align:'center'});
+  y += 26;
+  doc.setDrawColor(0); doc.line(margin, y, pageW-margin, y);
+  y += 24;
+
+  chosen.forEach((q, idx)=>{
+    // estimate space needed: header (~30pt) + ruled lines sized to word limit
+    const lineHeight = 18;
+    const numLines = Math.max(4, Math.round(q.wordLimit/12)); // rough heuristic
+    const blockHeight = 30 + numLines*lineHeight;
+
+    if(y + blockHeight > pageH - margin){
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.setFont('times','bold'); doc.setFontSize(11);
+    doc.text(`Q${idx+1}. [${q.year} | ${q.paper} | ${q.marks} marks | ${q.wordLimit} words]`, margin, y);
+    y += 16;
+
+    doc.setFont('times','normal'); doc.setFontSize(11);
+    const wrapped = doc.splitTextToSize(q.text, pageW - margin*2);
+    doc.text(wrapped, margin, y);
+    y += wrapped.length * 14 + 10;
+
+    doc.setDrawColor(180);
+    for(let i=0;i<numLines;i++){
+      doc.line(margin, y, pageW-margin, y);
+      y += lineHeight;
+    }
+    y += 16;
+  });
+
+  doc.save('QCAB_practice_booklet.pdf');
+});
+
+// ---- INIT --------------------------------------------------------------
+render();
+updateSummary();
+</script>
+</body>
+</html>
